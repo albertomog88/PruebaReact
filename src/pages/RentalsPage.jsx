@@ -1,108 +1,103 @@
-import React, { useState } from 'react';
+ï»¿import React from 'react';
 import {
-    Box, Paper, Typography, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, Chip, IconButton, Tooltip, TextField, InputAdornment
+    Box, Typography, Paper, Table, TableBody, TableCell, TableContainer,
+    TableHead, TableRow, Chip, IconButton, Card, CardContent, Stack
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn'; // Icono devolver
-import HistoryIcon from '@mui/icons-material/History';
-import CircleIcon from '@mui/icons-material/Circle';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import PersonIcon from '@mui/icons-material/Person';
 
 function RentalsPage({ historialAlquileres, onFinalizarAlquiler }) {
 
-    const [busqueda, setBusqueda] = useState('');
+    // VISTA MÃ“VIL (Tarjeta estilo lista)
+    const MobileRentalItem = ({ item }) => (
+        <Card sx={{ mb: 2, borderLeft: item.activo ? '4px solid #f97316' : '4px solid #94a3b8' }}>
+            <CardContent sx={{ pb: 1, '&:last-child': { pb: 2 } }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">{item.nombreCliente}</Typography>
+                    <Chip label={item.activo ? "En curso" : "Fin"} color={item.activo ? "warning" : "default"} size="small" />
+                </Box>
 
-    // Ordenamos: Primero los activos, luego por fecha más reciente
-    const alquileresOrdenados = [...historialAlquileres].sort((a, b) => {
-        if (a.activo === b.activo) {
-            return new Date(b.fechaInicio) - new Date(a.fechaInicio);
-        }
-        return a.activo ? -1 : 1;
-    });
+                <Stack spacing={1} sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DirectionsCarIcon fontSize="small" />
+                        <Typography>{item.matricula}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CalendarTodayIcon fontSize="small" />
+                        <Typography>
+                            {new Date(item.fechaInicio).toLocaleDateString()}
+                            {item.fechaFin && ` âž” ${new Date(item.fechaFin).toLocaleDateString()}`}
+                        </Typography>
+                    </Box>
+                </Stack>
 
-    const filtrados = alquileresOrdenados.filter(alquiler =>
-        alquiler.matricula.toLowerCase().includes(busqueda.toLowerCase()) ||
-        alquiler.nombreCliente.toLowerCase().includes(busqueda.toLowerCase())
+                {item.activo && (
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <IconButton
+                            color="success"
+                            onClick={() => onFinalizarAlquiler(item.id, item.vehiculoId)}
+                            sx={{ bgcolor: '#dcfce7', borderRadius: 2 }}
+                        >
+                            <Typography variant="button" sx={{ mx: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>Devolver</Typography>
+                            <CheckCircleIcon fontSize="small" />
+                        </IconButton>
+                    </Box>
+                )}
+            </CardContent>
+        </Card>
     );
 
     return (
-        <Box sx={{ p: 3, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>Historial de Alquileres</Typography>
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" fontWeight="bold" color="#1e293b">
-                    Gestión de Alquileres
-                </Typography>
-                <TextField
-                    size="small"
-                    placeholder="Buscar por cliente o matrícula..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    InputProps={{
-                        startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>),
-                    }}
-                    sx={{ bgcolor: 'white', borderRadius: 1 }}
-                />
-            </Box>
-
-            <TableContainer component={Paper} sx={{ flex: 1, overflow: 'auto', borderRadius: 2, boxShadow: 2 }}>
+            {/* LISTA PARA ESCRITORIO (TABLA) */}
+            <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' }, flex: 1, overflow: 'auto' }}>
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Estado</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Vehículo</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Fecha Inicio</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Fecha Fin</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Acciones</TableCell>
+                            <TableCell>MatrÃ­cula</TableCell>
+                            <TableCell>Cliente</TableCell>
+                            <TableCell>Desde</TableCell>
+                            <TableCell>Hasta</TableCell>
+                            <TableCell>Estado</TableCell>
+                            <TableCell align="right">Acciones</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filtrados.map((row) => (
-                            <TableRow key={row.id} hover sx={{ bgcolor: row.activo ? '#f0fdf4' : 'inherit' }}>
-                                <TableCell>
-                                    <Chip
-                                        icon={<CircleIcon sx={{ fontSize: '0.8rem !important' }} />}
-                                        label={row.activo ? "En Curso" : "Finalizado"}
-                                        color={row.activo ? "success" : "default"}
-                                        size="small"
-                                        variant={row.activo ? "filled" : "outlined"}
-                                    />
-                                </TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>{row.matricula}</TableCell>
+                        {historialAlquileres.map((row) => (
+                            <TableRow key={row.id}>
+                                <TableCell fontWeight="bold">{row.matricula}</TableCell>
                                 <TableCell>{row.nombreCliente}</TableCell>
                                 <TableCell>{new Date(row.fechaInicio).toLocaleDateString()}</TableCell>
+                                <TableCell>{row.fechaFin ? new Date(row.fechaFin).toLocaleDateString() : '-'}</TableCell>
                                 <TableCell>
-                                    {row.fechaFin ? new Date(row.fechaFin).toLocaleDateString() : '-'}
+                                    <Chip label={row.activo ? "En curso" : "Finalizado"} color={row.activo ? "warning" : "default"} size="small" />
                                 </TableCell>
-                                <TableCell sx={{ textAlign: 'center' }}>
+                                <TableCell align="right">
                                     {row.activo && (
-                                        <Tooltip title="Finalizar Alquiler (Devolver)">
-                                            <IconButton
-                                                color="primary"
-                                                onClick={() => onFinalizarAlquiler(row.id, row.vehiculoId)}
-                                            >
-                                                <AssignmentReturnIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )}
-                                    {!row.activo && (
-                                        <Tooltip title="Registro Histórico">
-                                            <HistoryIcon color="disabled" />
-                                        </Tooltip>
+                                        <IconButton color="success" onClick={() => onFinalizarAlquiler(row.id, row.vehiculoId)}>
+                                            <CheckCircleIcon />
+                                        </IconButton>
                                     )}
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {filtrados.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                                    No hay registros de alquileres.
-                                </TableCell>
-                            </TableRow>
-                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* LISTA PARA MÃ“VIL (CARDS) */}
+            <Box sx={{ display: { xs: 'block', md: 'none' }, flex: 1, overflow: 'auto' }}>
+                {historialAlquileres.map((item) => (
+                    <MobileRentalItem key={item.id} item={item} />
+                ))}
+                {historialAlquileres.length === 0 && (
+                    <Typography align="center" color="text.secondary" sx={{ mt: 4 }}>No hay datos.</Typography>
+                )}
+            </Box>
         </Box>
     );
 }

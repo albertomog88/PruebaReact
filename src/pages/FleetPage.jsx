@@ -1,34 +1,40 @@
 import React, { useState } from 'react';
 import {
     Box, Paper, Typography, List, ListItemButton, ListItemText, ListItemIcon,
-    Fab, TextField, InputAdornment, Snackbar, Alert,
-    Dialog, DialogTitle, DialogContent, DialogActions, Button,
-    FormControl, InputLabel, Select, MenuItem
+    Fab, TextField, InputAdornment, Snackbar, Alert, Button, Dialog, DialogTitle,
+    DialogContent, DialogActions, FormControl, InputLabel, Select, MenuItem,
+    useTheme, useMediaQuery
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import SearchIcon from '@mui/icons-material/Search';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 import VehicleCard from '../components/VehicleCard';
 import VehicleForm from '../components/VehicleForm';
 import StatusBadge from '../components/StatusBadge';
 
-// AHORA RECIBIMOS 'setHistorialAlquileres' TAMBIÉN
 function FleetPage({ listaVehiculos, setListaVehiculos, listaClientes, setHistorialAlquileres }) {
 
     const [idSeleccionado, setIdSeleccionado] = useState(null);
-    const [modalAbierto, setModalAbierto] = useState(false);
-    const [vehiculoAEditar, setVehiculoAEditar] = useState(null);
     const [busqueda, setBusqueda] = useState('');
 
-    // --- ESTADOS PARA ALQUILER ---
-    const [modalAlquilerAbierto, setModalAlquilerAbierto] = useState(false);
-    const [clienteParaAlquiler, setClienteParaAlquiler] = useState('');
-    // ------------------------------------
+    // --- ESTADOS DE MODALES ---
+    const [modalAbierto, setModalAbierto] = useState(false); // Crear/Editar Vehículo
+    const [vehiculoAEditar, setVehiculoAEditar] = useState(null);
 
-    const [notificacion, setNotificacion] = useState({
-        open: false, mensaje: '', tipo: 'success'
-    });
+    const [modalAlquilerAbierto, setModalAlquilerAbierto] = useState(false); // Alquilar
+    const [clienteParaAlquiler, setClienteParaAlquiler] = useState('');
+
+    const [notificacion, setNotificacion] = useState({ open: false, mensaje: '', tipo: 'success' });
+
+    // --- RESPONSIVE (Igual que ClientsPage) ---
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+    // Lógica de visualización:
+    const mostrarLista = !isMobile || (isMobile && !idSeleccionado);
+    const mostrarDetalle = !isMobile || (isMobile && idSeleccionado);
 
     const seleccionado = listaVehiculos.find(v => v.id === idSeleccionado);
 
@@ -37,70 +43,22 @@ function FleetPage({ listaVehiculos, setListaVehiculos, listaClientes, setHistor
         v.modelo.toLowerCase().includes(busqueda.toLowerCase())
     );
 
-    const mostrarNotificacion = (mensaje, tipo = 'success') => {
-        setNotificacion({ open: true, mensaje, tipo });
-    };
+    const mostrarNotificacion = (msg, tipo = 'success') => setNotificacion({ open: true, mensaje: msg, tipo });
 
-    const handleCerrarNotificacion = (event, reason) => {
-        if (reason === 'clickaway') return;
-        setNotificacion({ ...notificacion, open: false });
-    };
+    // --- LÓGICA DEL NEGOCIO ---
 
-    // --- FUNCIONES DE ALQUILER ---
-    const abrirModalAlquiler = () => {
+    const handleSumarKm = () => {
         if (!seleccionado) return;
-        setClienteParaAlquiler('');
-        setModalAlquilerAbierto(true);
+        setListaVehiculos(prev => prev.map(v => v.id === idSeleccionado ? { ...v, km: v.km + 1000 } : v));
+        mostrarNotificacion(`+1000 km registrados`, 'info');
     };
 
-    // ESTA ES LA ÚNICA VERSIÓN QUE NECESITAMOS (LA BUENA)
-    const confirmarAlquiler = () => {
-        if (!clienteParaAlquiler) {
-            alert("Por favor selecciona un cliente");
-            return;
+    const handleEliminar = () => {
+        if (window.confirm(`¿Eliminar ${seleccionado.matricula}?`)) {
+            setListaVehiculos(prev => prev.filter(v => v.id !== idSeleccionado));
+            setIdSeleccionado(null);
+            mostrarNotificacion('Vehículo eliminado', 'warning');
         }
-
-        const infoCliente = listaClientes.find(c => c.id === clienteParaAlquiler);
-        const vehiculo = listaVehiculos.find(v => v.id === idSeleccionado);
-
-        // 1. ACTUALIZAR ESTADO DEL VEHÍCULO
-        setListaVehiculos(prev => prev.map(v => {
-            if (v.id === idSeleccionado) {
-                return {
-                    ...v,
-                    estado: 'Alquilado',
-                    clienteAsignado: infoCliente.nombre
-                };
-            }
-            return v;
-        }));
-
-        // 2. CREAR REGISTRO EN EL HISTORIAL
-        if (setHistorialAlquileres) {
-            const nuevoAlquiler = {
-                id: Date.now().toString(),
-                vehiculoId: vehiculo.id,
-                matricula: vehiculo.matricula,
-                clientId: infoCliente.id,
-                nombreCliente: infoCliente.nombre,
-                fechaInicio: new Date().toISOString(),
-                fechaFin: null,
-                activo: true
-            };
-            setHistorialAlquileres(prev => [nuevoAlquiler, ...prev]);
-        }
-
-        mostrarNotificacion(`Alquilado a ${infoCliente.nombre}`, 'success');
-        setModalAlquilerAbierto(false);
-    };
-    // -----------------------------------------
-
-    const sumarKilometros = () => {
-        if (!seleccionado) return;
-        setListaVehiculos(listaActual =>
-            listaActual.map(v => v.id === idSeleccionado ? { ...v, km: v.km + 1000 } : v)
-        );
-        mostrarNotificacion(`Kilómetros actualizados: +1000`, 'info');
     };
 
     const handleAbrirCrear = () => {
@@ -115,34 +73,62 @@ function FleetPage({ listaVehiculos, setListaVehiculos, listaClientes, setHistor
 
     const handleGuardarVehiculo = (vehiculoFinal) => {
         if (vehiculoAEditar) {
-            setListaVehiculos(listaActual =>
-                listaActual.map(v => v.id === vehiculoFinal.id ? vehiculoFinal : v)
-            );
-            mostrarNotificacion('Vehículo actualizado correctamente', 'success');
+            setListaVehiculos(prev => prev.map(v => v.id === vehiculoFinal.id ? vehiculoFinal : v));
+            mostrarNotificacion('Vehículo actualizado', 'success');
         } else {
             setListaVehiculos([...listaVehiculos, vehiculoFinal]);
-            setIdSeleccionado(vehiculoFinal.id);
-            mostrarNotificacion('Nuevo vehículo añadido a la flota', 'success');
+            setIdSeleccionado(vehiculoFinal.id); // Seleccionamos el nuevo
+            mostrarNotificacion('Vehículo creado', 'success');
         }
+        setModalAbierto(false);
     };
 
-    const handleEliminar = () => {
-        if (window.confirm(`¿Seguro que quieres eliminar el vehículo ${seleccionado.matricula}?`)) {
-            const nuevaLista = listaVehiculos.filter(v => v.id !== idSeleccionado);
-            setListaVehiculos(nuevaLista);
-            setIdSeleccionado(null);
-            mostrarNotificacion('Vehículo eliminado permanentemente', 'warning');
-        }
+    // --- ALQUILER ---
+    const abrirModalAlquiler = () => {
+        setClienteParaAlquiler('');
+        setModalAlquilerAbierto(true);
     };
+
+    const confirmarAlquiler = () => {
+        if (!clienteParaAlquiler || !seleccionado) return alert("Selecciona un cliente");
+        const cliente = listaClientes.find(c => c.id === clienteParaAlquiler);
+
+        // 1. Actualizar estado vehículo
+        setListaVehiculos(prev => prev.map(v =>
+            v.id === seleccionado.id ? { ...v, estado: 'Alquilado', clienteAsignado: cliente.nombre } : v
+        ));
+
+        // 2. Crear historial
+        if (setHistorialAlquileres) {
+            setHistorialAlquileres(prev => [{
+                id: Date.now().toString(),
+                vehiculoId: seleccionado.id,
+                matricula: seleccionado.matricula,
+                clientId: cliente.id,
+                nombreCliente: cliente.nombre,
+                fechaInicio: new Date().toISOString(),
+                fechaFin: null,
+                activo: true
+            }, ...prev]);
+        }
+
+        mostrarNotificacion(`Alquilado a ${cliente.nombre}`, 'success');
+        setModalAlquilerAbierto(false);
+    };
+
 
     return (
         <Box sx={{ display: 'flex', gap: 3, flexGrow: 1, height: '100%', overflow: 'hidden' }}>
 
-            <Paper sx={{ width: 300, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            {/* --- LISTA LATERAL (Master) --- */}
+            <Paper sx={{
+                width: { xs: '100%', md: 300 },
+                display: mostrarLista ? 'flex' : 'none',
+                flexDirection: 'column',
+                flexShrink: 0
+            }}>
                 <Box sx={{ p: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                        Vehículos ({listaVehiculos.length})
-                    </Typography>
+                    <Typography variant="h6" sx={{ mb: 2 }}>Flota ({listaVehiculos.length})</Typography>
                     <TextField
                         fullWidth size="small" placeholder="Buscar matrícula..."
                         value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
@@ -159,52 +145,78 @@ function FleetPage({ listaVehiculos, setListaVehiculos, listaClientes, setHistor
                             onClick={() => setIdSeleccionado(vehiculo.id)}
                             divider
                         >
-                            <ListItemIcon sx={{ minWidth: 30 }}><DirectionsCarIcon fontSize="small" /></ListItemIcon>
+                            <ListItemIcon sx={{ minWidth: 35 }}><DirectionsCarIcon /></ListItemIcon>
                             <ListItemText
                                 primary={vehiculo.matricula}
-                                secondary={<StatusBadge estado={vehiculo.estado} />}
-                                secondaryTypographyProps={{ component: 'div' }}
+                                secondary={vehiculo.modelo}
                             />
+                            {/* Pequeño badge de estado en la lista */}
+                            <StatusBadge estado={vehiculo.estado} />
                         </ListItemButton>
                     ))}
                     {vehiculosFiltrados.length === 0 && (
-                        <Typography variant="body2" sx={{ p: 3, textAlign: 'center', color: '#94a3b8' }}>
-                            No se encontraron vehículos.
-                        </Typography>
+                        <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>Sin resultados</Typography>
                     )}
                 </List>
             </Paper>
 
-            <Box sx={{ flex: 1, overflow: 'auto' }}>
+            {/* --- DETALLE PRINCIPAL (Detail) --- */}
+            <Box sx={{
+                flex: 1,
+                overflow: 'auto',
+                display: mostrarDetalle ? 'flex' : 'none',
+                flexDirection: 'column'
+            }}>
+                {/* Botón Volver (Solo Móvil) */}
+                {isMobile && (
+                    <Button
+                        startIcon={<ArrowBackIcon />}
+                        onClick={() => setIdSeleccionado(null)}
+                        sx={{ alignSelf: 'flex-start', mb: 1 }}
+                    >
+                        Volver al listado
+                    </Button>
+                )}
+
+                {/* Reutilizamos el VehicleCard existente */}
                 <VehicleCard
                     vehiculo={seleccionado}
-                    onSumarKm={sumarKilometros}
+                    onSumarKm={handleSumarKm}
                     onEditar={handleAbrirEditar}
                     onEliminar={handleEliminar}
                     onAlquilar={abrirModalAlquiler}
                 />
             </Box>
 
-            <Fab color="primary" sx={{ position: 'fixed', bottom: 30, right: 30 }} onClick={handleAbrirCrear}>
+            {/* BOTÓN FLOTANTE (Solo visible en la vista de lista) */}
+            <Fab
+                color="primary"
+                sx={{
+                    position: 'fixed', bottom: 30, right: 30,
+                    display: (isMobile && idSeleccionado) ? 'none' : 'flex'
+                }}
+                onClick={handleAbrirCrear}
+            >
                 <AddIcon />
             </Fab>
 
+            {/* --- MODALES --- */}
+
+            {/* 1. Formulario Vehículo */}
             <VehicleForm
-                key={vehiculoAEditar ? vehiculoAEditar.id : 'alta_nueva'}
+                key={vehiculoAEditar ? vehiculoAEditar.id : 'nuevo'}
                 open={modalAbierto}
                 onClose={() => setModalAbierto(false)}
                 onGuardar={handleGuardarVehiculo}
                 vehiculoAEditar={vehiculoAEditar}
             />
 
-            {/* --- MODAL DE ALQUILER --- */}
+            {/* 2. Asignar Alquiler */}
             <Dialog open={modalAlquilerAbierto} onClose={() => setModalAlquilerAbierto(false)} fullWidth maxWidth="xs">
-                <DialogTitle>Asignar Cliente</DialogTitle>
+                <DialogTitle>Nuevo Alquiler</DialogTitle>
                 <DialogContent>
                     <Box sx={{ mt: 1 }}>
-                        <Typography variant="body2" color="text.secondary" paragraph>
-                            Selecciona el cliente para el vehículo <strong>{seleccionado?.matricula}</strong>.
-                        </Typography>
+                        <Typography paragraph>Vehículo: <strong>{seleccionado?.matricula}</strong></Typography>
                         <FormControl fullWidth>
                             <InputLabel>Cliente</InputLabel>
                             <Select
@@ -212,31 +224,21 @@ function FleetPage({ listaVehiculos, setListaVehiculos, listaClientes, setHistor
                                 label="Cliente"
                                 onChange={(e) => setClienteParaAlquiler(e.target.value)}
                             >
-                                {listaClientes && listaClientes.map(cliente => (
-                                    <MenuItem key={cliente.id} value={cliente.id}>
-                                        {cliente.nombre}
-                                    </MenuItem>
+                                {listaClientes?.map(c => (
+                                    <MenuItem key={c.id} value={c.id}>{c.nombre}</MenuItem>
                                 ))}
-                                {(!listaClientes || listaClientes.length === 0) && (
-                                    <MenuItem disabled>No hay clientes registrados</MenuItem>
-                                )}
                             </Select>
                         </FormControl>
                     </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setModalAlquilerAbierto(false)}>Cancelar</Button>
-                    <Button onClick={confirmarAlquiler} variant="contained" color="warning">Confirmar Alquiler</Button>
+                    <Button variant="contained" color="warning" onClick={confirmarAlquiler}>Confirmar</Button>
                 </DialogActions>
             </Dialog>
 
-            <Snackbar
-                open={notificacion.open} autoHideDuration={4000} onClose={handleCerrarNotificacion}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }} sx={{ mt: 8 }}
-            >
-                <Alert onClose={handleCerrarNotificacion} severity={notificacion.tipo} variant="filled" sx={{ width: '100%', boxShadow: 3 }}>
-                    {notificacion.mensaje}
-                </Alert>
+            <Snackbar open={notificacion.open} autoHideDuration={4000} onClose={() => setNotificacion({ ...notificacion, open: false })} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+                <Alert severity={notificacion.tipo} variant="filled">{notificacion.mensaje}</Alert>
             </Snackbar>
 
         </Box>
