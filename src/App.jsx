@@ -24,11 +24,16 @@ const clientesIniciales = [
 
 function App() {
     const [open, setOpen] = useState(true);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [listaVehiculos, setListaVehiculos] = useState(datosIniciales);
     const [listaClientes, setListaClientes] = useState(clientesIniciales); // <--- ESTADO NUEVO
 
     const handleDrawerToggle = () => {
-        setOpen(!open);
+        if (window.innerWidth < 600) {
+            setMobileOpen(!mobileOpen);
+        } else {
+            setOpen(!open);
+        }
     };
 
     const [historialAlquileres, setHistorialAlquileres] = useState([
@@ -58,19 +63,26 @@ function App() {
             <Box sx={{ display: 'flex' }}>
                 <CssBaseline />
                 <Navbar handleDrawerToggle={handleDrawerToggle} />
-                <Sidebar open={open} />
 
-                {/* --- CONTENEDOR PRINCIPAL --- */}
+                {/* Pasamos ambos estados al Sidebar */}
+                <Sidebar
+                    open={open}
+                    mobileOpen={mobileOpen}
+                    handleDrawerToggle={() => setMobileOpen(!mobileOpen)}
+                />
+
                 <Box
                     component="main"
                     sx={{
                         flexGrow: 1,
                         bgcolor: '#f1f5f9',
                         minHeight: '100vh',
-                        display: 'flex',        // Flex para organizar verticalmente
+                        display: 'flex',
                         flexDirection: 'column',
-                        overflow: 'hidden',     // Evita scrolls dobles raros
-                        p: 0                    // <--- CLAVE: QUITAMOS EL PADDING GLOBAL AQUÍ
+                        overflow: 'hidden',
+                        p: 0,
+                        // Ajuste importante: Ancho del contenido cuando el sidebar cambia
+                        width: { sm: `calc(100% - ${open ? 240 : 65}px)` }
                     }}
                 >
                     {/* Espaciador para que el contenido no quede bajo el Navbar */}
